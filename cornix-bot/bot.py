@@ -152,6 +152,23 @@ def price_precision(symbol):
     return _prec_cache.get(symbol, 4)
 
 
+def resolve_symbols(names):
+    """Accept 'BTC', 'BTCUSDT' or 'PEPE' (-> 1000PEPEUSDT). Unknown coins are skipped with a warning."""
+    price_precision("BTCUSDT")  # loads exchangeInfo into the cache
+    out = []
+    for n in names:
+        n = n.upper()
+        if not n.endswith("USDT"):
+            n += "USDT"
+        for cand in (n, "1000" + n):
+            if cand in _prec_cache:
+                out.append(cand)
+                break
+        else:
+            print(f"WARNING: {n} not found on exchange, skipping", file=sys.stderr)
+    return out
+
+
 def fetch_closed_klines(symbol):
     r = requests.get(CFG["base_url"] + "/fapi/v1/klines",
                      params={"symbol": symbol, "interval": CFG["timeframe"], "limit": 1500},
@@ -227,6 +244,7 @@ def main():
     if not CFG["token"] or not CFG["chat_id"]:
         sys.exit("Set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID")
     dry = "--dry-run" in args
+    CFG["symbols"] = resolve_symbols(CFG["symbols"])
     tf = TF_SECONDS[CFG["timeframe"]]
     print(f"Watching {CFG['symbols']} on {CFG['timeframe']} (dry_run={dry})")
     while True:
