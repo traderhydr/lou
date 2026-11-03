@@ -30,6 +30,7 @@ CFG = {
     "atr_period": env("ATR_PERIOD", 14, int),
     "sl_mult": env("SL_ATR_MULT", 6.0, float),
     "tp_level": env("TP_LEVEL", 1, int),            # which of TP1..TP4 to use (script default: 1)
+    "all_tps": env("ALL_TPS", "1") == "1",           # 1 = send TP1..TP4 like the chart
     "tp_mults": [float(x) for x in env("TP_ATR_MULTS", "1.5,3,5,9").split(",")],
     "entry_step": env("ENTRY_STEP_ATR", 0.5, float),  # spacing between the 3 entries
     "leverage": env("LEVERAGE", 10, int),
@@ -105,7 +106,8 @@ def build_signal(symbol, side, price, atr, prec):
     cfg = CFG
     sgn = 1 if side == "LONG" else -1
     entries = [price - sgn * atr * cfg["entry_step"] * k for k in range(3)]
-    tp = price + sgn * atr * cfg["tp_mults"][cfg["tp_level"] - 1]
+    mults = cfg["tp_mults"] if cfg["all_tps"] else [cfg["tp_mults"][cfg["tp_level"] - 1]]
+    tps = [price + sgn * atr * m for m in mults]
     sl = price - sgn * atr * cfg["sl_mult"]
     f = lambda x: f"{x:.{prec}f}"
     base, quote = (symbol[:-4], symbol[-4:]) if symbol.endswith("USDT") else (symbol[:-3], symbol[-3:])
@@ -115,7 +117,7 @@ def build_signal(symbol, side, price, atr, prec):
         "Entry Targets:",
         *[f"{i + 1}) {f(e)}" for i, e in enumerate(entries)],
         "Take-Profit Targets:",
-        f"1) {f(tp)}",
+        *[f"{i + 1}) {f(t)}" for i, t in enumerate(tps)],
         "Stop Targets:",
         f"1) {f(sl)}",
         f"Leverage: {cfg['margin']} ({cfg['leverage']}x)",
