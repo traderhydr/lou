@@ -29,7 +29,7 @@ CFG = {
     "bb_dev": env("BB_DEV", 1.5, float),            # GG-SHOT "Offset"
     "atr_period": env("ATR_PERIOD", 14, int),
     "sl_mult": env("SL_ATR_MULT", 6.0, float),
-    "tp_level": env("TP_LEVEL", 2, int),            # which of TP1..TP4 to use
+    "tp_level": env("TP_LEVEL", 1, int),            # which of TP1..TP4 to use (script default: 1)
     "tp_mults": [float(x) for x in env("TP_ATR_MULTS", "1.5,3,5,9").split(",")],
     "entry_step": env("ENTRY_STEP_ATR", 0.5, float),  # spacing between the 3 entries
     "leverage": env("LEVERAGE", 10, int),

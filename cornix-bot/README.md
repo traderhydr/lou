@@ -15,7 +15,7 @@ appears, posts a Cornix-format message (3 entries, 1 TP, 1 SL) to your Telegram 
 | `SYMBOLS` | `BTCUSDT` | comma list, Binance USDT-M futures symbols |
 | `TIMEFRAME` | `15m` | candle size |
 | `BB_PERIOD` / `BB_DEV` | `100` / `1.5` | GG-SHOT Sensitivity / Offset |
-| `TP_LEVEL` | `2` | which of TP1–TP4 (ATR x `1.5,3,5,9`) |
+| `TP_LEVEL` | `1` | which of TP1–TP4 (ATR x `1.5,3,5,9`) |
 | `SL_ATR_MULT` | `6` | stop distance in ATR |
 | `ENTRY_STEP_ATR` | `0.5` | spacing between the 3 entries |
 | `LEVERAGE`, `MARGIN_TYPE` | `10`, `Cross` | shown to Cornix |
