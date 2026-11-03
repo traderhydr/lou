@@ -181,12 +181,19 @@ def resolve_symbols(names):
     return out
 
 
+def server_time_ms():
+    try:
+        return get_json(CFG["base_url"] + "/fapi/v1/time")["serverTime"]
+    except requests.RequestException:
+        return int(time.time() * 1000)
+
+
 def fetch_closed_klines(symbol):
     k = get_json(CFG["base_url"] + "/fapi/v1/klines",
                  {"symbol": symbol, "interval": CFG["timeframe"], "limit": 1500})
-    # drop the still-forming candle
-    now_ms = int(time.time() * 1000)
-    if k and k[-1][6] > now_ms:
+    # drop still-forming candles, judged by the exchange's clock (not ours)
+    now_ms = server_time_ms()
+    while k and k[-1][6] >= now_ms:
         k = k[:-1]
     return k
 
@@ -222,13 +229,19 @@ def save_state(st):
 
 def run_once(dry_run=False):
     state = load_state()
+    ok = errs = found = 0
+    last_candle = None
     for sym in CFG["symbols"]:
         try:
             klines = fetch_closed_klines(sym)
             sigs = detect(klines, sym, price_precision(sym))
+            ok += 1
+            last_candle = klines[-1][0]
         except Exception as e:  # keep the loop alive on network/API errors
             print(f"{sym}: error {e}", file=sys.stderr)
+            errs += 1
             continue
+        found += len(sigs)
         for ts, side, msg in sigs:
             if ts <= state.get(sym, 0):
                 continue  # already posted (or older than the last posted signal)
@@ -237,6 +250,13 @@ def run_once(dry_run=False):
                 if not dry_run:
                     state[sym] = ts
                     save_state(state)
+    when = time.strftime("%m-%d %H:%M", time.gmtime(last_candle / 1000)) if last_candle else "n/a"
+    heartbeat(f"cycle: {ok} ok, {errs} errors, {found} signal(s) in last {LOOKBACK} candles, "
+              f"latest closed candle {when} UTC")
+
+
+def heartbeat(ok_line):
+    print(ok_line, flush=True)
 
 
 def main():
@@ -260,8 +280,8 @@ def main():
         run_once(dry)
         if "--once" in args:
             return
-        now = time.time()
-        time.sleep(((now // tf) + 1) * tf + 5 - now)  # wake 5s after next candle close
+        now = server_time_ms() / 1000
+        time.sleep(max(1, ((now // tf) + 1) * tf + 5 - now))  # wake 5s after next candle close
 
 
 if __name__ == "__main__":
