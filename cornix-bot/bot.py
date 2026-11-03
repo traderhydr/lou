@@ -40,6 +40,8 @@ CFG = {
     "short": env("SHORT_SIDE", "1") == "1",
 }
 
+LOOKBACK = 3  # candles re-checked each cycle; state file prevents duplicates
+
 TF_SECONDS = {"1m": 60, "3m": 180, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600,
               "2h": 7200, "4h": 14400, "1d": 86400}
 
@@ -127,7 +129,7 @@ def detect(klines, symbol, prec, all_history=False):
     c = [float(k[4]) for k in klines]
     longs, shorts = gg_shot(h, l, c, CFG["bb_period"], CFG["bb_dev"])
     atr = atr_series(h, l, c, CFG["atr_period"])
-    idx = range(len(c)) if all_history else [len(c) - 1]
+    idx = range(len(c)) if all_history else range(max(0, len(c) - LOOKBACK), len(c))
     out = []
     for i in idx:
         if math.isnan(atr[i]):
@@ -143,11 +145,21 @@ def detect(klines, symbol, prec, all_history=False):
 _prec_cache = {}
 
 
+def get_json(url, params=None, tries=4):
+    for attempt in range(tries):
+        try:
+            r = requests.get(url, params=params, timeout=20)
+            r.raise_for_status()
+            return r.json()
+        except requests.RequestException:
+            if attempt == tries - 1:
+                raise
+            time.sleep(2 ** attempt)
+
+
 def price_precision(symbol):
     if not _prec_cache:
-        r = requests.get(CFG["base_url"] + "/fapi/v1/exchangeInfo", timeout=20)
-        r.raise_for_status()
-        for s in r.json()["symbols"]:
+        for s in get_json(CFG["base_url"] + "/fapi/v1/exchangeInfo")["symbols"]:
             _prec_cache[s["symbol"]] = s["pricePrecision"]
     return _prec_cache.get(symbol, 4)
 
@@ -170,11 +182,8 @@ def resolve_symbols(names):
 
 
 def fetch_closed_klines(symbol):
-    r = requests.get(CFG["base_url"] + "/fapi/v1/klines",
-                     params={"symbol": symbol, "interval": CFG["timeframe"], "limit": 1500},
-                     timeout=20)
-    r.raise_for_status()
-    k = r.json()
+    k = get_json(CFG["base_url"] + "/fapi/v1/klines",
+                 {"symbol": symbol, "interval": CFG["timeframe"], "limit": 1500})
     # drop the still-forming candle
     now_ms = int(time.time() * 1000)
     if k and k[-1][6] > now_ms:
@@ -221,8 +230,8 @@ def run_once(dry_run=False):
             print(f"{sym}: error {e}", file=sys.stderr)
             continue
         for ts, side, msg in sigs:
-            if state.get(sym) == ts:
-                continue  # already posted
+            if ts <= state.get(sym, 0):
+                continue  # already posted (or older than the last posted signal)
             print(f"{sym} {side} signal @ {ts}\n{msg}\n")
             if dry_run or send_telegram(msg):
                 if not dry_run:
