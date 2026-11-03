@@ -30,6 +30,8 @@ CFG = {
     "atr_period": env("ATR_PERIOD", 14, int),
     "sl_mult": env("SL_ATR_MULT", 6.0, float),
     "tp_level": env("TP_LEVEL", 1, int),            # which of TP1..TP4 to use (script default: 1)
+    # 1 = copy the script: SHORT TP/SL use the ATR from the last LONG signal (its valuewhen(buy,..) quirk)
+    "script_short_atr": env("SCRIPT_SHORT_ATR", "1") == "1",
     "all_tps": env("ALL_TPS", "1") == "1",           # 1 = send TP1..TP4 like the chart
     "tp_mults": [float(x) for x in env("TP_ATR_MULTS", "1.5,3,5,9").split(",")],
     "entry_step": env("ENTRY_STEP_ATR", 0.5, float),  # spacing between the 3 entries
@@ -102,13 +104,15 @@ def gg_shot(h, l, c, bb_period, bb_dev):
     return longs, shorts
 
 
-def build_signal(symbol, side, price, atr, prec):
+def build_signal(symbol, side, price, atr, prec, tp_atr=None):
+    """atr: current ATR (entry spacing). tp_atr: ATR used for TP/SL distances (defaults to atr)."""
     cfg = CFG
     sgn = 1 if side == "LONG" else -1
+    tp_atr = atr if tp_atr is None else tp_atr
     entries = [price - sgn * atr * cfg["entry_step"] * k for k in range(3)]
     mults = cfg["tp_mults"] if cfg["all_tps"] else [cfg["tp_mults"][cfg["tp_level"] - 1]]
-    tps = [price + sgn * atr * m for m in mults]
-    sl = price - sgn * atr * cfg["sl_mult"]
+    tps = [price + sgn * tp_atr * m for m in mults]
+    sl = price - sgn * tp_atr * cfg["sl_mult"]
     f = lambda x: f"{x:.{prec}f}"
     base, quote = (symbol[:-4], symbol[-4:]) if symbol.endswith("USDT") else (symbol[:-3], symbol[-3:])
     return "\n".join([
@@ -131,6 +135,12 @@ def detect(klines, symbol, prec, all_history=False):
     c = [float(k[4]) for k in klines]
     longs, shorts = gg_shot(h, l, c, CFG["bb_period"], CFG["bb_dev"])
     atr = atr_series(h, l, c, CFG["atr_period"])
+    # ATR frozen at the most recent LONG signal (Pine: ta.valuewhen(buy, ta.atr(14), 0))
+    last_buy_atr, cur = [NAN] * len(c), NAN
+    for j in range(len(c)):
+        if longs[j] and CFG["long"] and not math.isnan(atr[j]):
+            cur = atr[j]
+        last_buy_atr[j] = cur
     idx = range(len(c)) if all_history else range(max(0, len(c) - LOOKBACK), len(c))
     out = []
     for i in idx:
@@ -139,7 +149,8 @@ def detect(klines, symbol, prec, all_history=False):
         if longs[i] and CFG["long"]:
             out.append((klines[i][0], "LONG", build_signal(symbol, "LONG", c[i], atr[i], prec)))
         elif shorts[i] and CFG["short"]:
-            out.append((klines[i][0], "SHORT", build_signal(symbol, "SHORT", c[i], atr[i], prec)))
+            tp_atr = last_buy_atr[i] if CFG["script_short_atr"] and not math.isnan(last_buy_atr[i]) else atr[i]
+            out.append((klines[i][0], "SHORT", build_signal(symbol, "SHORT", c[i], atr[i], prec, tp_atr)))
     return out
 
 
