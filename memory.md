@@ -55,8 +55,8 @@ No secrets are stored here (bot token / chat id live only in the server's system
   `STATE_FILE` (must differ!) and quiet-hours lines. Bot must be admin of that channel.
 - FINAL (2026-11-04) channel-2 schedule = QUIET hours, from the user's Cornix "Operation hours" calendar: grey blocks
   with icon = paused, blue entries = resume. Quiet 13:00-16:15 and 19:30-23:15 Europe/Madrid (CET, UTC+1), Mon-Fri only
-  (weekends have no block = no pause). Config: `QUIET_HOURS=13:00-16:15,19:30-23:15`, `QUIET_DAYS=1-5`,
-  `QUIET_TZ=Europe/Madrid`. (An interim version wrongly treated these as ACTIVE hours; the `ACTIVE_HOURS`/`ACTIVE_DAYS`
+  (weekends have no block = no pause). Config: `QUIET_HOURS=13:00-16:15,19:30-23:15`, `QUIET_TZ=Europe/Madrid`.
+  UPDATE: user then asked for the SAME quiet windows on weekends too -> `QUIET_DAYS` line REMOVED (applies every day). (An interim version wrongly treated these as ACTIVE hours; the `ACTIVE_HOURS`/`ACTIVE_DAYS`
   options still exist but must stay unset for channel 2.) End times exclusive; signals inside a quiet window are dropped.
 - Coin list/timeframe for channel 2 not yet specified (it copies channel 1).
 
