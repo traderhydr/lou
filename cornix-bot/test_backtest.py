@@ -96,6 +96,7 @@ t = bt.simulate_trade(kl, LONG, None, 5, 0.0, 0, ES, TS)
 assert t["reason"] == "SL" and approx(t["pnl_units"], 94 / 99.625 - 1, 1e-6), t
 # the live message now lists exactly 3 TPs
 msg = bot.build_signal("BTCUSDT", "LONG", 100.0, 1.0, 2)
-assert msg.count(")") == 3 + 3 + 1, msg
+import re
+assert len(re.findall(r"^\d\) ", msg, re.M)) == 3 + 3 + 1, msg  # 3 entries, 3 TPs, 1 stop
 bot.CFG.update(all_tps=True, tp_count=4)
 print("SPLIT TESTS OK")
