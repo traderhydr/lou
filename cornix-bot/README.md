@@ -22,6 +22,7 @@ appears, posts a Cornix-format message (3 entries, 1 TP, 1 SL) to your Telegram 
 | `LEVERAGE`, `MARGIN_TYPE` | `10`, `Cross` | shown to Cornix |
 | `ACTIVE_HOURS` | (off) | post ONLY inside these windows, e.g. `13:00-16:15,19:30-23:15` (end time exclusive) |
 | `ACTIVE_DAYS` | (every day) | ISO weekdays, Mon=1: `1-5` = Monday to Friday |
+| `QUIET_DAYS` | (every day) | weekdays the `QUIET_HOURS` apply on, `1-5` = Mon-Fri (weekends then unrestricted) |
 | `QUIET_HOURS` | (off) | no posting in these windows, e.g. `22:00-06:00` or `00:00-04:00,13:00-14:00` |
 | `QUIET_TZ` | `UTC` | timezone for `ACTIVE_HOURS`/`ACTIVE_DAYS`/`QUIET_HOURS`, IANA name e.g. `Asia/Kolkata` |
 | `STATE_FILE` | `state.json` | MUST differ per running copy of the bot |

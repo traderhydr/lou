@@ -46,3 +46,17 @@ assert bot.is_quiet(M(4, 13, 45)) and not bot.is_quiet(M(4, 12, 0))
 bot.CFG.update(quiet=[], active=[], active_days=set())
 assert not bot.is_quiet(M(7, 3, 0))       # nothing configured -> never blocked
 print("OPERATION HOURS OK")
+
+# USER'S ACTUAL SCHEDULE: quiet 13:00-16:15 and 19:30-23:15 Madrid, Mon-Fri only; weekends unrestricted
+bot.CFG.update(active=[], active_days=set(), quiet_tz="Europe/Madrid")
+bot.CFG["quiet"] = bot.parse_quiet("13:00-16:15,19:30-23:15"); bot.CFG["quiet_days"] = bot.parse_days("1-5")
+assert bot.is_quiet(M(4, 12, 0)) and bot.is_quiet(M(4, 15, 14))           # Wed 13:00-16:14 Madrid -> quiet
+assert not bot.is_quiet(M(4, 15, 15)) and not bot.is_quiet(M(4, 16, 0))   # 16:15 resumes, 17:00 posting
+assert not bot.is_quiet(M(4, 18, 29)) and bot.is_quiet(M(4, 18, 30))      # 19:29 posting, 19:30 quiet
+assert bot.is_quiet(M(4, 22, 14)) and not bot.is_quiet(M(4, 22, 15))      # 23:14 quiet, 23:15 posting
+assert not bot.is_quiet(M(4, 22, 59)) and not bot.is_quiet(M(4, 23, 30))  # 23:59 and 00:30 Madrid -> posting
+assert not bot.is_quiet(M(4, 8, 0)) and not bot.is_quiet(M(4, 3, 0))      # morning/night -> posting
+assert not bot.is_quiet(M(7, 13, 0)) and not bot.is_quiet(M(8, 19, 0))    # Sat 14:00 / Sun 20:00 Madrid -> posting
+assert bot.is_quiet(M(2, 13, 0)) and bot.is_quiet(M(6, 13, 0))            # Mon and Fri 14:00 -> quiet
+bot.CFG.update(quiet=[], quiet_days=set())
+print("USER SCHEDULE OK")

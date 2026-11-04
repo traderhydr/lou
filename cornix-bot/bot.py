@@ -45,6 +45,7 @@ CFG = {
     "state_file": env("STATE_FILE", "state.json"),
     "active_raw": env("ACTIVE_HOURS", ""),          # post ONLY inside these windows, e.g. "13:00-16:15,19:30-23:15"
     "days_raw": env("ACTIVE_DAYS", ""),             # ISO weekdays Mon=1..Sun=7, e.g. "1-5" (empty = every day)
+    "quiet_days_raw": env("QUIET_DAYS", ""),        # weekdays the QUIET_HOURS apply on, e.g. "1-5" (empty = every day)
     "quiet_raw": env("QUIET_HOURS", ""),            # e.g. "22:00-06:00" or "00:00-04:00,13:00-14:00"
     "quiet_tz": env("QUIET_TZ", "UTC"),             # IANA tz for QUIET_HOURS/ACTIVE_HOURS/ACTIVE_DAYS, e.g. "Europe/Madrid"
     "long": env("LONG_SIDE", "1") == "1",
@@ -85,6 +86,7 @@ def parse_days(text):
 CFG["quiet"] = parse_quiet(CFG["quiet_raw"])
 CFG["active"] = parse_quiet(CFG["active_raw"])
 CFG["active_days"] = parse_days(CFG["days_raw"])
+CFG["quiet_days"] = parse_days(CFG["quiet_days_raw"])
 
 
 def _in_windows(windows, minute):
@@ -106,6 +108,8 @@ def is_quiet(now=None):
         return True
     if CFG["active"] and not _in_windows(CFG["active"], m):
         return True
+    if CFG["quiet_days"] and now.isoweekday() not in CFG["quiet_days"]:
+        return False  # quiet windows do not apply on this weekday (e.g. weekends)
     return _in_windows(CFG["quiet"], m)
 
 
@@ -116,7 +120,7 @@ def schedule_text():
     if CFG["days_raw"]:
         parts.append(f"days {CFG['days_raw']}")
     if CFG["quiet_raw"]:
-        parts.append(f"quiet {CFG['quiet_raw']}")
+        parts.append(f"quiet {CFG['quiet_raw']}" + (f" on days {CFG['quiet_days_raw']}" if CFG["quiet_days_raw"] else ""))
     return (", ".join(parts) + f" {CFG['quiet_tz']}") if parts else ""
 
 
