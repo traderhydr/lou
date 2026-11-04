@@ -43,8 +43,10 @@ CFG = {
     "margin": env("MARGIN_TYPE", "Cross"),
     "base_url": env("EXCHANGE_URL", "https://fapi.binance.com"),
     "state_file": env("STATE_FILE", "state.json"),
+    "active_raw": env("ACTIVE_HOURS", ""),          # post ONLY inside these windows, e.g. "13:00-16:15,19:30-23:15"
+    "days_raw": env("ACTIVE_DAYS", ""),             # ISO weekdays Mon=1..Sun=7, e.g. "1-5" (empty = every day)
     "quiet_raw": env("QUIET_HOURS", ""),            # e.g. "22:00-06:00" or "00:00-04:00,13:00-14:00"
-    "quiet_tz": env("QUIET_TZ", "UTC"),             # IANA name, e.g. "Asia/Kolkata"
+    "quiet_tz": env("QUIET_TZ", "UTC"),             # IANA tz for QUIET_HOURS/ACTIVE_HOURS/ACTIVE_DAYS, e.g. "Europe/Madrid"
     "long": env("LONG_SIDE", "1") == "1",
     "short": env("SHORT_SIDE", "1") == "1",
 }
@@ -65,20 +67,57 @@ def parse_quiet(text):
     return out
 
 
+def parse_days(text):
+    """'1-5' or '1,2,3' or '1-3,6' -> {1,2,3,...} (ISO weekdays, Mon=1)."""
+    out = set()
+    for part in text.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            a, b = (int(x) for x in part.split("-"))
+            out.update(range(a, b + 1))
+        else:
+            out.add(int(part))
+    return out
+
+
 CFG["quiet"] = parse_quiet(CFG["quiet_raw"])
+CFG["active"] = parse_quiet(CFG["active_raw"])
+CFG["active_days"] = parse_days(CFG["days_raw"])
+
+
+def _in_windows(windows, minute):
+    for start, end in windows:
+        if (start <= minute < end) if start <= end else (minute >= start or minute < end):
+            return True
+    return False
 
 
 def is_quiet(now=None):
-    """True while inside a quiet window (windows may cross midnight). `now` must be timezone-aware."""
-    if not CFG["quiet"]:
+    """True when posting is NOT allowed: wrong weekday, outside ACTIVE_HOURS, or inside QUIET_HOURS.
+    Windows may cross midnight; end time is exclusive. `now` must be timezone-aware."""
+    if not (CFG["quiet"] or CFG["active"] or CFG["active_days"]):
         return False
     tz = ZoneInfo(CFG["quiet_tz"])
     now = now.astimezone(tz) if now else datetime.now(tz)
     m = now.hour * 60 + now.minute
-    for start, end in CFG["quiet"]:
-        if (start <= m < end) if start <= end else (m >= start or m < end):
-            return True
-    return False
+    if CFG["active_days"] and now.isoweekday() not in CFG["active_days"]:
+        return True
+    if CFG["active"] and not _in_windows(CFG["active"], m):
+        return True
+    return _in_windows(CFG["quiet"], m)
+
+
+def schedule_text():
+    parts = []
+    if CFG["active_raw"]:
+        parts.append(f"active {CFG['active_raw']}")
+    if CFG["days_raw"]:
+        parts.append(f"days {CFG['days_raw']}")
+    if CFG["quiet_raw"]:
+        parts.append(f"quiet {CFG['quiet_raw']}")
+    return (", ".join(parts) + f" {CFG['quiet_tz']}") if parts else ""
 
 
 TF_SECONDS = {"1m": 60, "3m": 180, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600,
@@ -310,7 +349,7 @@ def run_once(dry_run=False):
             if ts <= state.get(sym, 0):
                 continue  # already posted (or older than the last posted signal)
             if is_quiet():
-                print(f"{sym} {side} signal @ {ts} SUPPRESSED (quiet hours {CFG['quiet_raw']} {CFG['quiet_tz']})")
+                print(f"{sym} {side} signal @ {ts} SUPPRESSED (outside operation hours: {schedule_text()})")
                 if not dry_run:  # mark as handled so it is not posted late, after the quiet window ends
                     state[sym] = ts
                     save_state(state)
@@ -345,9 +384,9 @@ def main():
     dry = "--dry-run" in args
     CFG["symbols"] = resolve_symbols(CFG["symbols"])
     tf = TF_SECONDS[CFG["timeframe"]]
-    if CFG["quiet"]:
+    if schedule_text():
         ZoneInfo(CFG["quiet_tz"])  # fail fast on a bad timezone name
-    quiet = f", quiet hours {CFG['quiet_raw']} {CFG['quiet_tz']}" if CFG["quiet"] else ""
+    quiet = f", schedule: {schedule_text()}" if schedule_text() else ""
     print(f"Watching {CFG['symbols']} on {CFG['timeframe']} (dry_run={dry}{quiet})")
     while True:
         run_once(dry)

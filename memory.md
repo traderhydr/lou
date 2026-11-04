@@ -53,7 +53,11 @@ No secrets are stored here (bot token / chat id live only in the server's system
   also dropped, so an earlier open trade stays open until TP/SL or the next non-quiet signal.
 - Second channel = second systemd service named `louga-v2` (user's name for it; first one is `ggshot`), copied from `ggshot` with its own `TELEGRAM_CHAT_ID`,
   `STATE_FILE` (must differ!) and quiet-hours lines. Bot must be admin of that channel.
-- Exact hours/timezone/coin list for channel 2 not yet given by the user.
+- CORRECTION 2026-11-04: user's hours are OPERATION (active) hours, not quiet hours — per their Cornix "Operation hours"
+  screenshot: Mon-Fri only, 13:00-16:15 and 19:30-23:15, Europe/Madrid (CET, UTC+1). Implemented as `ACTIVE_HOURS`,
+  `ACTIVE_DAYS=1-5` (+ `QUIET_TZ=Europe/Madrid`); `QUIET_HOURS` must be EMPTY/removed or nothing posts.
+  Posting rule: weekday allowed AND inside an active window AND not in a quiet window; end times exclusive.
+- Coin list/timeframe for channel 2 not yet specified (it copies channel 1).
 
 ## Backtest tooling (`cornix-bot/`)
 - `backtest.py`: portfolio sim — capital, % of equity as MARGIN per trade, leverage, fee per fill, 3 limit entries with
