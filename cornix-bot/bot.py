@@ -104,8 +104,9 @@ def gg_shot(h, l, c, bb_period, bb_dev):
     return longs, shorts
 
 
-def build_signal(symbol, side, price, atr, prec, tp_atr=None):
-    """atr: current ATR (entry spacing). tp_atr: ATR used for TP/SL distances (defaults to atr)."""
+def levels(side, price, atr, tp_atr=None):
+    """Returns (entries[3], take_profits[], stop_loss). Single source for bot and backtest.
+    atr: current ATR (entry spacing). tp_atr: ATR used for TP/SL distances (defaults to atr)."""
     cfg = CFG
     sgn = 1 if side == "LONG" else -1
     tp_atr = atr if tp_atr is None else tp_atr
@@ -113,6 +114,12 @@ def build_signal(symbol, side, price, atr, prec, tp_atr=None):
     mults = cfg["tp_mults"] if cfg["all_tps"] else [cfg["tp_mults"][cfg["tp_level"] - 1]]
     tps = [price + sgn * tp_atr * m for m in mults]
     sl = price - sgn * tp_atr * cfg["sl_mult"]
+    return entries, tps, sl
+
+
+def build_signal(symbol, side, price, atr, prec, tp_atr=None):
+    cfg = CFG
+    entries, tps, sl = levels(side, price, atr, tp_atr)
     f = lambda x: f"{x:.{prec}f}"
     base, quote = (symbol[:-4], symbol[-4:]) if symbol.endswith("USDT") else (symbol[:-3], symbol[-3:])
     return "\n".join([
@@ -128,8 +135,8 @@ def build_signal(symbol, side, price, atr, prec, tp_atr=None):
     ])
 
 
-def detect(klines, symbol, prec, all_history=False):
-    """klines: closed candles only. Returns list of (open_time_ms, side, message)."""
+def compute_signals(klines, all_history=False):
+    """klines: closed candles only. Returns dicts: i, ts, side, price, atr, tp_atr."""
     h = [float(k[2]) for k in klines]
     l = [float(k[3]) for k in klines]
     c = [float(k[4]) for k in klines]
@@ -147,11 +154,19 @@ def detect(klines, symbol, prec, all_history=False):
         if math.isnan(atr[i]):
             continue
         if longs[i] and CFG["long"]:
-            out.append((klines[i][0], "LONG", build_signal(symbol, "LONG", c[i], atr[i], prec)))
+            out.append({"i": i, "ts": klines[i][0], "side": "LONG", "price": c[i],
+                        "atr": atr[i], "tp_atr": atr[i]})
         elif shorts[i] and CFG["short"]:
             tp_atr = last_buy_atr[i] if CFG["script_short_atr"] and not math.isnan(last_buy_atr[i]) else atr[i]
-            out.append((klines[i][0], "SHORT", build_signal(symbol, "SHORT", c[i], atr[i], prec, tp_atr)))
+            out.append({"i": i, "ts": klines[i][0], "side": "SHORT", "price": c[i],
+                        "atr": atr[i], "tp_atr": tp_atr})
     return out
+
+
+def detect(klines, symbol, prec, all_history=False):
+    """Returns list of (open_time_ms, side, message)."""
+    return [(s["ts"], s["side"], build_signal(symbol, s["side"], s["price"], s["atr"], prec, s["tp_atr"]))
+            for s in compute_signals(klines, all_history)]
 
 
 # ------------------------------------------------------------------- I/O

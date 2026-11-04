@@ -36,3 +36,13 @@ Keep the `/data` volume so a restart never re-posts the same signal.
 
 Notes: Binance blocks some cloud regions (US); pick an EU/Asia region. Signals are evaluated on
 closed candles only and use the "No Filtering" mode with ATR-based TP/SL from the original script.
+
+## Backtest
+```bash
+# load the same settings as the service (coins, timeframe, leverage)
+export $(grep '^Environment=' /etc/systemd/system/ggshot.service | sed 's/^Environment=//' | xargs)
+./venv/bin/python backtest.py --days 30 --capital 5000 --pct 5 --lev 25
+```
+Options: `--fee` (% per fill, default 0.05), `--max-open N`, `--be` (move SL to entry after TP1),
+`--no-close-opposite`, `--refresh` (re-download). Data is cached in `cache/`; trades go to `trades.csv`.
+Offline self-test: `python test_backtest.py`.
