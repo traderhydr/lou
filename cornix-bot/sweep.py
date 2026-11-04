@@ -26,6 +26,7 @@ VARIANTS = [
     ("single TP3 (5 ATR)", {"all_tps": False, "tp_level": 3}, {}),
     ("SL 3 ATR", {"sl_mult": 3.0}, {}),
     ("move SL to entry after TP1", {}, {"be": True}),
+    ("NO move-to-entry", {}, {"be": False}),
     ("no close on opposite signal", {}, {"close_opposite": False}),
     ("BB 150 / 3.1 (fewer signals)", {"bb_period": 150, "bb_dev": 3.1}, {}),
     ("BB 300 / 2.0 (fewer signals)", {"bb_period": 300, "bb_dev": 2.0}, {}),
@@ -89,10 +90,12 @@ def main():
     ap.add_argument("--lev", type=int, default=bot.CFG["leverage"])
     ap.add_argument("--fee", type=float, default=0.05)
     ap.add_argument("--max-open", type=int, default=0)
+    ap.add_argument("--be", action="store_true", help="baseline moves SL to entry after TP1")
+    ap.add_argument("--no-close-opposite", dest="close_opposite", action="store_false",
+                    help="allow hedged positions (hedge mode ON)")
     ap.add_argument("--cache", default="cache")
     ap.add_argument("--refresh", action="store_true")
     args = ap.parse_args()
-    args.close_opposite, args.be = True, False
     symbols = bot.resolve_symbols(bot.CFG["symbols"])
     data, start_ms = bt.load_data(symbols, args.days, args.cache, args.refresh)
     print_table(sweep(data, start_ms, args), data, start_ms)
