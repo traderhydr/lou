@@ -80,7 +80,15 @@ def load_data(symbols, days, cache_dir, refresh):
 
 
 # ------------------------------------------------------------ trade engine
-def simulate_trade(kl, sig, exit_idx, lev, fee, be_after_tp1):
+def _norm(split, n):
+    """Normalise a split list to sum 1 (equal parts if missing or wrong length)."""
+    if not split or len(split) != n:
+        return [1.0 / n] * n
+    t = float(sum(split))
+    return [x / t for x in split]
+
+
+def simulate_trade(kl, sig, exit_idx, lev, fee, be_after=0, entry_split=None, tp_split=None):
     """Simulate one signal on candles after sig['i'].
     exit_idx: index of the candle whose close ends the trade (next opposite signal) or None.
     Returns dict with pnl in units of the FULL notional (1.0 = whole trade size), or None if
@@ -89,9 +97,16 @@ def simulate_trade(kl, sig, exit_idx, lev, fee, be_after_tp1):
     sgn = 1 if side == "LONG" else -1
     entries, tps, sl = bot.levels(side, sig["price"], sig["atr"], sig["tp_atr"])
     n_e = len(entries)
+    be_after = int(be_after)          # move SL to entry once TP number `be_after` is hit (0 = never)
+    e_split = _norm(entry_split, n_e)
+    if tp_split:
+        k = min(len(tp_split), len(tps))
+        tps = tps[:k]
+        split = _norm(list(tp_split[:k]), k)
+    else:
+        split = TP_SPLIT[:len(tps)] if len(tps) == len(TP_SPLIT) else [1.0]
     filled = [False] * n_e
     hit = [False] * len(tps)
-    split = TP_SPLIT[:len(tps)] if len(tps) == len(TP_SPLIT) else [1.0]
     qty = 0.0          # open position, in fractions of full notional
     cost = 0.0         # sum(qty_i * price_i) for average entry
     total_filled = 0.0
@@ -119,7 +134,7 @@ def simulate_trade(kl, sig, exit_idx, lev, fee, be_after_tp1):
         for e in range(n_e):
             if not filled[e] and ((lo <= entries[e]) if sgn == 1 else (hi >= entries[e])):
                 filled[e] = True
-                q = 1.0 / n_e
+                q = e_split[e]
                 qty += q
                 total_filled += q
                 cost += q * entries[e]
@@ -140,7 +155,7 @@ def simulate_trade(kl, sig, exit_idx, lev, fee, be_after_tp1):
             break
         # 3. stop-loss (before TPs on the same candle)
         cur_sl = sl
-        if be_after_tp1 and hit[0]:
+        if be_after and be_after <= len(tps) and hit[be_after - 1]:
             cur_sl = avg
         if (lo <= cur_sl) if sgn == 1 else (hi >= cur_sl):
             close(qty, cur_sl, avg)
@@ -192,7 +207,9 @@ def run_backtest(data, start_ms, args, sig_cache=None):
             if args.close_opposite:
                 nxt = next((x for x in sigs[n + 1:] if x["side"] != s["side"]), None)
                 exit_idx = nxt["i"] if nxt else None
-            t = simulate_trade(kl, s, exit_idx, args.lev, args.fee / 100, args.be)
+            be_after = getattr(args, "be_after", 0) or (1 if getattr(args, "be", False) else 0)
+            t = simulate_trade(kl, s, exit_idx, args.lev, args.fee / 100, be_after,
+                               getattr(args, "entry_split", None), getattr(args, "tp_split", None))
             if t:
                 t["symbol"] = sym
                 trades.append(t)
@@ -245,6 +262,10 @@ def report(taken, skipped, equity, max_dd, max_conc, args):
     print("\n================ BACKTEST RESULT ================")
     print(f"Period           : last {args.days} days, {bot.CFG['timeframe']} candles, {len(set(t['symbol'] for t in taken))} coins traded")
     print(f"Capital          : ${args.capital:,.2f}  ->  ${equity:,.2f}  ({(equity / args.capital - 1) * 100:+.1f}%)")
+    be_after = getattr(args, "be_after", 0) or (1 if getattr(args, "be", False) else 0)
+    fmt = lambda v: "-".join(f"{x:g}" for x in v) if v else "default"
+    print(f"Entry / TP split : {fmt(getattr(args, 'entry_split', None))} / {fmt(getattr(args, 'tp_split', None))}"
+          f"   SL to entry after: {'TP' + str(be_after) if be_after else 'never'}")
     print(f"Sizing           : {args.pct}% of equity as margin per trade, {args.lev}x leverage, fee {args.fee}%/fill")
     print(f"Trades taken     : {len(taken)}  (skipped for no free margin/limit: {skipped}, peak simultaneous: {max_conc})")
     if taken:
@@ -286,6 +307,17 @@ def save_csv(taken, path):
                         t["reason"], t["tps_hit"], round(t["filled"], 2)])
 
 
+def parse_split(text):
+    return [float(x) for x in text.split(",")] if text else None
+
+
+def apply_split_cfg(args):
+    """A custom TP split fixes how many TPs are sent."""
+    if args.tp_split:
+        bot.CFG["all_tps"] = True
+        bot.CFG["tp_count"] = len(args.tp_split)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--days", type=int, default=30)
@@ -296,10 +328,14 @@ def main():
     ap.add_argument("--max-open", type=int, default=0, help="max simultaneous trades (0 = no limit)")
     ap.add_argument("--no-close-opposite", dest="close_opposite", action="store_false")
     ap.add_argument("--be", action="store_true", help="move SL to entry after TP1")
+    ap.add_argument("--be-after", type=int, default=0, help="move SL to entry after TP number N")
+    ap.add_argument("--entry-split", type=parse_split, default=None, help="e.g. 50,25,25")
+    ap.add_argument("--tp-split", type=parse_split, default=None, help="e.g. 34,33,33 (also sets TP count)")
     ap.add_argument("--cache", default="cache")
     ap.add_argument("--refresh", action="store_true", help="re-download data")
     ap.add_argument("--csv", default="trades.csv")
     args = ap.parse_args()
+    apply_split_cfg(args)
 
     symbols = bot.resolve_symbols(bot.CFG["symbols"])
     print(f"Downloading {args.days} days of {bot.CFG['timeframe']} data for {len(symbols)} coins...", file=sys.stderr)

@@ -32,6 +32,7 @@ CFG = {
     "tp_level": env("TP_LEVEL", 1, int),            # which of TP1..TP4 to use (script default: 1)
     # 1 = copy the script: SHORT TP/SL use the ATR from the last LONG signal (its valuewhen(buy,..) quirk)
     "script_short_atr": env("SCRIPT_SHORT_ATR", "1") == "1",
+    "tp_count": env("TP_COUNT", 4, int),             # how many of TP1..TP4 to send when ALL_TPS=1
     "all_tps": env("ALL_TPS", "1") == "1",           # 1 = send TP1..TP4 like the chart
     "tp_mults": [float(x) for x in env("TP_ATR_MULTS", "1.5,3,5,9").split(",")],
     "entry_step": env("ENTRY_STEP_ATR", 0.5, float),  # spacing between the 3 entries
@@ -111,7 +112,7 @@ def levels(side, price, atr, tp_atr=None):
     sgn = 1 if side == "LONG" else -1
     tp_atr = atr if tp_atr is None else tp_atr
     entries = [price - sgn * atr * cfg["entry_step"] * k for k in range(3)]
-    mults = cfg["tp_mults"] if cfg["all_tps"] else [cfg["tp_mults"][cfg["tp_level"] - 1]]
+    mults = cfg["tp_mults"][:cfg["tp_count"]] if cfg["all_tps"] else [cfg["tp_mults"][cfg["tp_level"] - 1]]
     tps = [price + sgn * tp_atr * m for m in mults]
     sl = price - sgn * tp_atr * cfg["sl_mult"]
     return entries, tps, sl

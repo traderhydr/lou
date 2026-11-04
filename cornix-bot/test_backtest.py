@@ -76,3 +76,26 @@ sweep.print_table(rows, data, 0)
 long_only = dict(rows)["LONG only"]; short_only = dict(rows)["SHORT only"]
 assert long_only["n"] > 0 and short_only["n"] > 0
 print("SWEEP OK")
+
+# 9. entry split 50/25/25, TP split 34/33/33 (3 TPs), SL to entry after TP2
+bot.CFG.update(all_tps=True, tp_count=3)
+ES, TS = [50, 25, 25], [34, 33, 33]
+kl = [K(0, 100, 100, 100, 100), K(1, 100, 101.6, 99.9, 101), K(2, 101, 103.2, 100.2, 103), K(3, 103, 103, 99.8, 100)]
+t = bt.simulate_trade(kl, LONG, None, 25, 0.0, 2, ES, TS)
+# only entry 1 filled (0.5): TP1 closes 0.17 @101.5, TP2 closes 0.165 @103, rest stopped at entry (100)
+assert t["reason"] == "BE" and t["tps_hit"] == 2 and approx(t["filled"], 0.5), t
+assert approx(t["pnl_units"], 0.17 * 0.015 + 0.165 * 0.03, 1e-6), t
+# BE only after TP2: after TP1 alone a dip to entry does NOT stop the trade
+kl = [K(0, 100, 100, 100, 100), K(1, 100, 101.6, 99.9, 101), K(2, 101, 101.0, 99.8, 100.5)]
+t = bt.simulate_trade(kl, LONG, None, 25, 0.0, 2, ES, TS)
+assert t["reason"] == "END" and t["tps_hit"] == 1, t
+assert approx(t["pnl_units"], 0.17 * 0.015 + 0.33 * 0.005, 1e-6), t
+# a deep dip fills all three entries at the 50/25/25 weights (avg 99.625)
+kl = [K(0, 100, 100, 100, 100), K(1, 100, 100.2, 93.0, 95)]
+t = bt.simulate_trade(kl, LONG, None, 5, 0.0, 0, ES, TS)
+assert t["reason"] == "SL" and approx(t["pnl_units"], 94 / 99.625 - 1, 1e-6), t
+# the live message now lists exactly 3 TPs
+msg = bot.build_signal("BTCUSDT", "LONG", 100.0, 1.0, 2)
+assert msg.count(")") == 3 + 3 + 1, msg
+bot.CFG.update(all_tps=True, tp_count=4)
+print("SPLIT TESTS OK")
