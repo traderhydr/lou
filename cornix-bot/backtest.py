@@ -174,10 +174,17 @@ def simulate_trade(kl, sig, exit_idx, lev, fee, be_after_tp1):
 
 
 # ----------------------------------------------------------- portfolio loop
-def run_backtest(data, start_ms, args):
+def run_backtest(data, start_ms, args, sig_cache=None):
     trades = []
     for sym, kl in data.items():
-        sigs = bot.compute_signals(kl, all_history=True)
+        key = (sym, bot.CFG["bb_period"], bot.CFG["bb_dev"], bot.CFG["script_short_atr"],
+               bot.CFG["long"], bot.CFG["short"], bot.CFG["atr_period"])
+        if sig_cache is not None and key in sig_cache:
+            sigs = sig_cache[key]
+        else:
+            sigs = bot.compute_signals(kl, all_history=True)
+            if sig_cache is not None:
+                sig_cache[key] = sigs
         for n, s in enumerate(sigs):
             if s["ts"] < start_ms:
                 continue

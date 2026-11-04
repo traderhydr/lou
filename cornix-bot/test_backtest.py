@@ -66,3 +66,13 @@ assert taken and eq > 0 and 0 <= dd <= 1 and conc >= 1
 assert all(t["pnl_usd"] >= -t["margin"] - 1e-9 for t in taken)
 bt.report(taken, skipped, eq, dd, conc, args)
 print("ALL TESTS PASSED")
+
+# 8. sweep runs and restores bot.CFG afterwards
+import sweep
+before = dict(bot.CFG)
+rows = sweep.sweep(data, 0, args, sweep.VARIANTS[:8])
+assert len(rows) == 8 and dict(bot.CFG) == before
+sweep.print_table(rows, data, 0)
+long_only = dict(rows)["LONG only"]; short_only = dict(rows)["SHORT only"]
+assert long_only["n"] > 0 and short_only["n"] > 0
+print("SWEEP OK")
