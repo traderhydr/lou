@@ -100,3 +100,29 @@ import re
 assert len(re.findall(r"^\d\) ", msg, re.M)) == 3 + 3 + 1, msg  # 3 entries, 3 TPs, 1 stop
 bot.CFG.update(all_tps=True, tp_count=4)
 print("SPLIT TESTS OK")
+
+# 10. data loading with an offset window (fake exchange, no network)
+import tempfile, time as _t
+tfms = bot.TF_SECONDS[bot.CFG["timeframe"]] * 1000
+def fake_get_json(url, params=None, tries=4):
+    if url.endswith("/time"):
+        return {"serverTime": int(_t.time() * 1000)}
+    s0, e0 = params["startTime"], params["endTime"]
+    t0 = (s0 // tfms + (1 if s0 % tfms else 0)) * tfms
+    out, t = [], t0
+    while t < e0 and len(out) < params["limit"]:
+        out.append([t, 1, 1.1, 0.9, 1, 0, t + tfms - 1]); t += tfms
+    return out
+real = bot.get_json
+bot.get_json = fake_get_json
+try:
+    with tempfile.TemporaryDirectory() as d:
+        now_ms = int(_t.time() * 1000)
+        d0, st0 = bt.load_data(["AAAUSDT"], 2, d, False, 0)
+        d1, st1 = bt.load_data(["AAAUSDT"], 2, d, False, 5)
+        assert abs((st0 - st1) - 5 * 86400000) < 1000, (st0, st1)
+        assert d1["AAAUSDT"][-1][0] < now_ms - 4 * 86400000 and d0["AAAUSDT"][-1][0] > now_ms - 2 * tfms * 2
+        assert len(os.listdir(d)) == 2   # separate cache files for the two windows
+finally:
+    bot.get_json = real
+print("OFFSET OK")

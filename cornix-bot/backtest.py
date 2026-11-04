@@ -53,17 +53,19 @@ def fetch_history(symbol, start_ms, end_ms):
     return [x for x in out if x[6] < now_ms]
 
 
-def load_data(symbols, days, cache_dir, refresh):
+def load_data(symbols, days, cache_dir, refresh, offset_days=0):
+    """Window = [now - offset - days, now - offset]; offset_days > 0 tests an EARLIER period."""
     os.makedirs(cache_dir, exist_ok=True)
     tf = bot.CFG["timeframe"]
     tf_ms = bot.TF_SECONDS[tf] * 1000
-    end_ms = int(time.time() * 1000)
+    end_ms = int(time.time() * 1000) - offset_days * 86400000
     warm = 1500 * tf_ms
     start_ms = end_ms - days * 86400000 - warm
     day = time.strftime("%Y%m%d", time.gmtime())
+    off = f"_off{offset_days}" if offset_days else ""
     data = {}
     for n, sym in enumerate(symbols, 1):
-        path = os.path.join(cache_dir, f"{sym}_{tf}_{days}d_{day}.json")
+        path = os.path.join(cache_dir, f"{sym}_{tf}_{days}d{off}_{day}.json")
         if os.path.exists(path) and not refresh:
             with open(path) as f:
                 data[sym] = json.load(f)
@@ -260,7 +262,8 @@ def report(taken, skipped, equity, max_dd, max_conc, args):
     gp = sum(t["pnl_usd"] for t in wins)
     gl = -sum(t["pnl_usd"] for t in losses)
     print("\n================ BACKTEST RESULT ================")
-    print(f"Period           : last {args.days} days, {bot.CFG['timeframe']} candles, {len(set(t['symbol'] for t in taken))} coins traded")
+    when = f"{args.days} days ending {args.offset_days} days ago" if getattr(args, "offset_days", 0) else f"last {args.days} days"
+    print(f"Period           : {when}, {bot.CFG['timeframe']} candles, {len(set(t['symbol'] for t in taken))} coins traded")
     print(f"Capital          : ${args.capital:,.2f}  ->  ${equity:,.2f}  ({(equity / args.capital - 1) * 100:+.1f}%)")
     be_after = getattr(args, "be_after", 0) or (1 if getattr(args, "be", False) else 0)
     fmt = lambda v: "-".join(f"{x:g}" for x in v) if v else "default"
@@ -282,6 +285,14 @@ def report(taken, skipped, equity, max_dd, max_conc, args):
             ts = [t for t in taken if t["side"] == side]
             if ts:
                 print(f"{side:<5} trades     : {len(ts)}, PnL ${sum(t['pnl_usd'] for t in ts):+,.2f}, win rate {sum(t['pnl_usd'] > 0 for t in ts) / len(ts) * 100:.0f}%")
+        t0, t1 = min(t["open_ts"] for t in taken), max(t["close_ts"] for t in taken)
+        span = max(1, t1 - t0)
+        q = [[0, 0.0] for _ in range(4)]
+        for t in taken:
+            b = min(3, int((t["close_ts"] - t0) / span * 4))
+            q[b][0] += 1
+            q[b][1] += t["pnl_usd"]
+        print("PnL by quarter   : " + "  |  ".join(f"Q{i + 1}: {c} trades {p:+,.0f}" for i, (c, p) in enumerate(q)))
         per = {}
         for t in taken:
             per.setdefault(t["symbol"], 0.0)
@@ -331,6 +342,7 @@ def main():
     ap.add_argument("--be-after", type=int, default=0, help="move SL to entry after TP number N")
     ap.add_argument("--entry-split", type=parse_split, default=None, help="e.g. 50,25,25")
     ap.add_argument("--tp-split", type=parse_split, default=None, help="e.g. 34,33,33 (also sets TP count)")
+    ap.add_argument("--offset-days", type=int, default=0, help="shift the test window back N days (out-of-sample check)")
     ap.add_argument("--cache", default="cache")
     ap.add_argument("--refresh", action="store_true", help="re-download data")
     ap.add_argument("--csv", default="trades.csv")
@@ -339,7 +351,7 @@ def main():
 
     symbols = bot.resolve_symbols(bot.CFG["symbols"])
     print(f"Downloading {args.days} days of {bot.CFG['timeframe']} data for {len(symbols)} coins...", file=sys.stderr)
-    data, start_ms = load_data(symbols, args.days, args.cache, args.refresh)
+    data, start_ms = load_data(symbols, args.days, args.cache, args.refresh, args.offset_days)
     taken, skipped, equity, max_dd, max_conc, _ = run_backtest(data, start_ms, args)
     report(taken, skipped, equity, max_dd, max_conc, args)
     if taken:
