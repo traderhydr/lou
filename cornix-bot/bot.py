@@ -10,6 +10,9 @@ import os
 import sys
 import time
 
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 import requests
 
 NAN = float("nan")
@@ -40,11 +43,43 @@ CFG = {
     "margin": env("MARGIN_TYPE", "Cross"),
     "base_url": env("EXCHANGE_URL", "https://fapi.binance.com"),
     "state_file": env("STATE_FILE", "state.json"),
+    "quiet_raw": env("QUIET_HOURS", ""),            # e.g. "22:00-06:00" or "00:00-04:00,13:00-14:00"
+    "quiet_tz": env("QUIET_TZ", "UTC"),             # IANA name, e.g. "Asia/Kolkata"
     "long": env("LONG_SIDE", "1") == "1",
     "short": env("SHORT_SIDE", "1") == "1",
 }
 
 LOOKBACK = 3  # candles re-checked each cycle; state file prevents duplicates
+
+def parse_quiet(text):
+    """'22:00-06:00,12:00-13:00' -> [(1320, 360), (720, 780)] minutes since midnight."""
+    out = []
+    for part in text.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        a, b = part.split("-")
+        h1, m1 = (int(x) for x in a.split(":"))
+        h2, m2 = (int(x) for x in b.split(":"))
+        out.append((h1 * 60 + m1, h2 * 60 + m2))
+    return out
+
+
+CFG["quiet"] = parse_quiet(CFG["quiet_raw"])
+
+
+def is_quiet(now=None):
+    """True while inside a quiet window (windows may cross midnight). `now` must be timezone-aware."""
+    if not CFG["quiet"]:
+        return False
+    tz = ZoneInfo(CFG["quiet_tz"])
+    now = now.astimezone(tz) if now else datetime.now(tz)
+    m = now.hour * 60 + now.minute
+    for start, end in CFG["quiet"]:
+        if (start <= m < end) if start <= end else (m >= start or m < end):
+            return True
+    return False
+
 
 TF_SECONDS = {"1m": 60, "3m": 180, "5m": 300, "15m": 900, "30m": 1800, "1h": 3600,
               "2h": 7200, "4h": 14400, "1d": 86400}
@@ -274,6 +309,12 @@ def run_once(dry_run=False):
         for ts, side, msg in sigs:
             if ts <= state.get(sym, 0):
                 continue  # already posted (or older than the last posted signal)
+            if is_quiet():
+                print(f"{sym} {side} signal @ {ts} SUPPRESSED (quiet hours {CFG['quiet_raw']} {CFG['quiet_tz']})")
+                if not dry_run:  # mark as handled so it is not posted late, after the quiet window ends
+                    state[sym] = ts
+                    save_state(state)
+                continue
             print(f"{sym} {side} signal @ {ts}\n{msg}\n")
             if dry_run or send_telegram(msg):
                 if not dry_run:
@@ -304,7 +345,10 @@ def main():
     dry = "--dry-run" in args
     CFG["symbols"] = resolve_symbols(CFG["symbols"])
     tf = TF_SECONDS[CFG["timeframe"]]
-    print(f"Watching {CFG['symbols']} on {CFG['timeframe']} (dry_run={dry})")
+    if CFG["quiet"]:
+        ZoneInfo(CFG["quiet_tz"])  # fail fast on a bad timezone name
+    quiet = f", quiet hours {CFG['quiet_raw']} {CFG['quiet_tz']}" if CFG["quiet"] else ""
+    print(f"Watching {CFG['symbols']} on {CFG['timeframe']} (dry_run={dry}{quiet})")
     while True:
         run_once(dry)
         if "--once" in args:

@@ -20,6 +20,9 @@ appears, posts a Cornix-format message (3 entries, 1 TP, 1 SL) to your Telegram 
 | `SL_ATR_MULT` | `6` | stop distance in ATR |
 | `ENTRY_STEP_ATR` | `0.5` | spacing between the 3 entries |
 | `LEVERAGE`, `MARGIN_TYPE` | `10`, `Cross` | shown to Cornix |
+| `QUIET_HOURS` | (off) | no posting in these windows, e.g. `22:00-06:00` or `00:00-04:00,13:00-14:00` |
+| `QUIET_TZ` | `UTC` | timezone for `QUIET_HOURS`, IANA name e.g. `Asia/Kolkata` |
+| `STATE_FILE` | `state.json` | MUST differ per running copy of the bot |
 | `EXCHANGE_URL` | `https://fapi.binance.com` | change if your host is geo-blocked |
 
 3. Check it: `python bot.py --test-telegram`, then `python bot.py --history` (past signals, posts nothing),
@@ -46,3 +49,8 @@ export $(grep '^Environment=' /etc/systemd/system/ggshot.service | sed 's/^Envir
 Options: `--fee` (% per fill, default 0.05), `--max-open N`, `--be` (move SL to entry after TP1),
 `--no-close-opposite`, `--refresh` (re-download). Data is cached in `cache/`; trades go to `trades.csv`.
 Offline self-test: `python test_backtest.py`.
+
+## Second channel / second copy
+Run another systemd service (own `TELEGRAM_CHAT_ID`, own `STATE_FILE`, optional `QUIET_HOURS`).
+Two copies sharing one state file would corrupt the duplicate protection. Signals inside quiet hours are dropped
+(not delayed), and a trade opened earlier is NOT closed by an opposite signal that falls in the quiet window.
