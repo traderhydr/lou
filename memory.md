@@ -51,7 +51,7 @@ No secrets are stored here (bot token / chat id live only in the server's system
 - `QUIET_HOURS` (e.g. `22:00-06:00`, comma list allowed, may cross midnight) + `QUIET_TZ` (IANA, default UTC): signals
   inside the window are suppressed and marked handled in state (never posted late). Opposite signals in the window are
   also dropped, so an earlier open trade stays open until TP/SL or the next non-quiet signal.
-- Second channel = second systemd service `ggshot2` copied from `ggshot` with its own `TELEGRAM_CHAT_ID`,
+- Second channel = second systemd service named `louga-v2` (user's name for it; first one is `ggshot`), copied from `ggshot` with its own `TELEGRAM_CHAT_ID`,
   `STATE_FILE` (must differ!) and quiet-hours lines. Bot must be admin of that channel.
 - Exact hours/timezone/coin list for channel 2 not yet given by the user.
 
