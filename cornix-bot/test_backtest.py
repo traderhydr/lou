@@ -126,3 +126,31 @@ try:
 finally:
     bot.get_json = real
 print("OFFSET OK")
+
+# 11. fixed-% TP1 (levels + live override window + backtest)
+from datetime import datetime, timedelta, timezone
+bot.CFG.update(all_tps=True, tp_count=4)
+e, tps, sl = bot.levels("LONG", 100.0, 1.0, None, 0.1)
+assert approx(tps[0], 100.1) and approx(tps[1], 103.0) and approx(tps[2], 105.0) and approx(tps[3], 109.0), tps
+e, tps, sl = bot.levels("SHORT", 100.0, 1.0, None, 0.1)
+assert approx(tps[0], 99.9) and approx(tps[1], 97.0) and approx(tps[3], 91.0), tps
+e, tps, sl = bot.levels("LONG", 100.0, 1.0)                       # no override -> ATR TP1 (1.5)
+assert approx(tps[0], 101.5)
+now = datetime.now(timezone.utc)
+bot.CFG["tp1_pct"] = 0.1
+bot.CFG["tp1_until"] = now + timedelta(hours=24)
+assert bot.tp1_override_pct() == 0.1 and "1) 100.10" in bot.build_signal("BTCUSDT", "LONG", 100.0, 1.0, 2).split("Take-Profit Targets:")[1]
+assert bot.tp1_override_pct(now + timedelta(hours=23, minutes=59)) == 0.1
+assert bot.tp1_override_pct(now + timedelta(hours=24, minutes=1)) is None      # reverted automatically
+bot.CFG["tp1_until"] = now - timedelta(seconds=1)                                # expired -> ATR TP1 again
+assert "1) 101.50" in bot.build_signal("BTCUSDT", "LONG", 100.0, 1.0, 2).split("Take-Profit Targets:")[1]
+bot.CFG["tp1_until"] = None                                                       # no deadline -> permanent
+assert bot.tp1_override_pct(now + timedelta(days=400)) == 0.1
+bot.CFG["tp1_pct"] = 0.0
+assert bot.parse_until("2026-11-06T12:00:00Z") == datetime(2026, 11, 6, 12, 0, tzinfo=timezone.utc)
+kl = [K(0, 100, 100, 100, 100), K(1, 100, 100.2, 99.9, 100.0)]
+t = bt.simulate_trade(kl, LONG, None, 25, 0.0, 0, None, None, 0.1)
+assert t["tps_hit"] == 1 and approx(t["pnl_units"], (1/3) * 0.3 * 0.001, 1e-7), t
+t0 = bt.simulate_trade(kl, LONG, None, 25, 0.0, 0)
+assert t0["tps_hit"] == 0                                                        # ATR TP1 (101.5) not reached
+print("TP1 FIXED OK")

@@ -22,6 +22,8 @@ appears, posts a Cornix-format message (3 entries, 1 TP, 1 SL) to your Telegram 
 | `LEVERAGE`, `MARGIN_TYPE` | `10`, `Cross` | shown to Cornix |
 | `ACTIVE_HOURS` | (off) | post ONLY inside these windows, e.g. `13:00-16:15,19:30-23:15` (end time exclusive) |
 | `ACTIVE_DAYS` | (every day) | ISO weekdays, Mon=1: `1-5` = Monday to Friday |
+| `TP1_PCT` | `0` (off) | fixed TP1 distance in % of entry, e.g. `0.1` (other TPs stay ATR based) |
+| `TP1_UNTIL` | (none) | UTC deadline `2026-11-06T12:00:00Z`; after it TP1 reverts to the ATR target automatically |
 | `QUIET_DAYS` | (every day) | weekdays the `QUIET_HOURS` apply on, `1-5` = Mon-Fri (weekends then unrestricted) |
 | `QUIET_HOURS` | (off) | no posting in these windows, e.g. `22:00-06:00` or `00:00-04:00,13:00-14:00` |
 | `QUIET_TZ` | `UTC` | timezone for `ACTIVE_HOURS`/`ACTIVE_DAYS`/`QUIET_HOURS`, IANA name e.g. `Asia/Kolkata` |
@@ -49,7 +51,7 @@ closed candles only and use the "No Filtering" mode with ATR-based TP/SL from th
 export $(grep '^Environment=' /etc/systemd/system/ggshot.service | sed 's/^Environment=//' | xargs)
 ./venv/bin/python backtest.py --days 30 --capital 5000 --pct 5 --lev 25
 ```
-Options: `--fee` (% per fill, default 0.05), `--max-open N`, `--be` (move SL to entry after TP1),
+Options: `--tp1-pct 0.1` (fixed TP1), `--fee` (% per fill, default 0.05), `--max-open N`, `--be` (move SL to entry after TP1),
 `--no-close-opposite`, `--refresh` (re-download). Data is cached in `cache/`; trades go to `trades.csv`.
 Offline self-test: `python test_backtest.py`.
 

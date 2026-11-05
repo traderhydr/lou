@@ -22,6 +22,7 @@ VARIANTS = [
     ("LONG only", {"short": False}, {}),
     ("SHORT only", {"long": False}, {}),
     ("short ATR = current (not script)", {"script_short_atr": False}, {}),
+    ("TP1 fixed 0.1%", {}, {"tp1_pct": 0.1}),
     ("single TP2 (3 ATR)", {"all_tps": False, "tp_level": 2}, {}),
     ("single TP3 (5 ATR)", {"all_tps": False, "tp_level": 3}, {}),
     ("SL 3 ATR", {"sl_mult": 3.0}, {}),
