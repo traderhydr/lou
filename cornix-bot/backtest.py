@@ -90,14 +90,14 @@ def _norm(split, n):
     return [x / t for x in split]
 
 
-def simulate_trade(kl, sig, exit_idx, lev, fee, be_after=0, entry_split=None, tp_split=None, tp1_pct=None):
+def simulate_trade(kl, sig, exit_idx, lev, fee, be_after=0, entry_split=None, tp_split=None):
     """Simulate one signal on candles after sig['i'].
     exit_idx: index of the candle whose close ends the trade (next opposite signal) or None.
     Returns dict with pnl in units of the FULL notional (1.0 = whole trade size), or None if
     no entry ever filled."""
     side = sig["side"]
     sgn = 1 if side == "LONG" else -1
-    entries, tps, sl = bot.levels(side, sig["price"], sig["atr"], sig["tp_atr"], tp1_pct)
+    entries, tps, sl = bot.levels(side, sig["price"], sig["atr"], sig["tp_atr"])
     n_e = len(entries)
     be_after = int(be_after)          # move SL to entry once TP number `be_after` is hit (0 = never)
     e_split = _norm(entry_split, n_e)
@@ -211,8 +211,7 @@ def run_backtest(data, start_ms, args, sig_cache=None):
                 exit_idx = nxt["i"] if nxt else None
             be_after = getattr(args, "be_after", 0) or (1 if getattr(args, "be", False) else 0)
             t = simulate_trade(kl, s, exit_idx, args.lev, args.fee / 100, be_after,
-                               getattr(args, "entry_split", None), getattr(args, "tp_split", None),
-                               getattr(args, "tp1_pct", None))
+                               getattr(args, "entry_split", None), getattr(args, "tp_split", None))
             if t:
                 t["symbol"] = sym
                 trades.append(t)
@@ -270,8 +269,6 @@ def report(taken, skipped, equity, max_dd, max_conc, args):
     fmt = lambda v: "-".join(f"{x:g}" for x in v) if v else "default"
     print(f"Entry / TP split : {fmt(getattr(args, 'entry_split', None))} / {fmt(getattr(args, 'tp_split', None))}"
           f"   SL to entry after: {'TP' + str(be_after) if be_after else 'never'}")
-    if getattr(args, "tp1_pct", None):
-        print(f"TP1              : fixed {args.tp1_pct}% of entry (other targets ATR based)")
     print(f"Sizing           : {args.pct}% of equity as margin per trade, {args.lev}x leverage, fee {args.fee}%/fill")
     print(f"Trades taken     : {len(taken)}  (skipped for no free margin/limit: {skipped}, peak simultaneous: {max_conc})")
     if taken:
@@ -345,7 +342,6 @@ def main():
     ap.add_argument("--be-after", type=int, default=0, help="move SL to entry after TP number N")
     ap.add_argument("--entry-split", type=parse_split, default=None, help="e.g. 50,25,25")
     ap.add_argument("--tp-split", type=parse_split, default=None, help="e.g. 34,33,33 (also sets TP count)")
-    ap.add_argument("--tp1-pct", type=float, default=None, help="fixed TP1 distance in %% of entry, e.g. 0.1")
     ap.add_argument("--offset-days", type=int, default=0, help="shift the test window back N days (out-of-sample check)")
     ap.add_argument("--cache", default="cache")
     ap.add_argument("--refresh", action="store_true", help="re-download data")

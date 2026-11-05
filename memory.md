@@ -60,13 +60,6 @@ No secrets are stored here (bot token / chat id live only in the server's system
   options still exist but must stay unset for channel 2.) End times exclusive; signals inside a quiet window are dropped.
 - Coin list/timeframe for channel 2 not yet specified (it copies channel 1).
 
-## Louga-v2 24-hour TP1 trial (requested 2026-11-05)
-- `louga-v2` only: TP1 = fixed 0.1% of entry (replaces the 1.5xATR TP1; TPs become 0.1%, 3, 5, 9 x ATR), for 24 hours,
-  then automatically back to the previous setup. Config: `TP1_PCT=0.1` + `TP1_UNTIL=<UTC deadline>` in louga-v2.service
-  (deadline = date -u -d '+24 hours'). After the deadline the bot ignores TP1_PCT by itself; remove the two lines later.
-- Caveat given: 0.1% is about equal to round-trip fees, so TP1 is ~break-even by design. `backtest.py --tp1-pct 0.1`
-  and a sweep row ("TP1 fixed 0.1%") exist to test it. Entry/TP splits and "close after 24h" are Cornix-side settings.
-
 ## Backtest tooling (`cornix-bot/`)
 - `backtest.py`: portfolio sim — capital, % of equity as MARGIN per trade, leverage, fee per fill, 3 limit entries with
   configurable split, TP split (sets TP count), SL-to-entry after TP N, per-trade liquidation estimate, close on

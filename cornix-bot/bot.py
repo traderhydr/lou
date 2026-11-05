@@ -10,7 +10,7 @@ import os
 import sys
 import time
 
-from datetime import datetime, timezone
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import requests
@@ -36,8 +36,6 @@ CFG = {
     # 1 = copy the script: SHORT TP/SL use the ATR from the last LONG signal (its valuewhen(buy,..) quirk)
     "script_short_atr": env("SCRIPT_SHORT_ATR", "1") == "1",
     "tp_count": env("TP_COUNT", 4, int),             # how many of TP1..TP4 to send when ALL_TPS=1
-    "tp1_pct": env("TP1_PCT", 0.0, float),           # fixed TP1 distance in % of entry (0 = off, use ATR TP1)
-    "tp1_until_raw": env("TP1_UNTIL", ""),          # UTC deadline, e.g. 2026-11-06T12:00:00Z; after it TP1 reverts to ATR
     "all_tps": env("ALL_TPS", "1") == "1",           # 1 = send TP1..TP4 like the chart
     "tp_mults": [float(x) for x in env("TP_ATR_MULTS", "1.5,3,5,9").split(",")],
     "entry_step": env("ENTRY_STEP_ATR", 0.5, float),  # spacing between the 3 entries
@@ -83,24 +81,6 @@ def parse_days(text):
         else:
             out.add(int(part))
     return out
-
-
-def parse_until(text):
-    if not text:
-        return None
-    dt = datetime.fromisoformat(text.strip().replace("Z", "+00:00"))
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
-CFG["tp1_until"] = parse_until(CFG["tp1_until_raw"])
-
-
-def tp1_override_pct(now=None):
-    """Fixed-% TP1 while active (before TP1_UNTIL, or always when no deadline); otherwise None."""
-    if not CFG["tp1_pct"]:
-        return None
-    now = now or datetime.now(timezone.utc)
-    return CFG["tp1_pct"] if (CFG["tp1_until"] is None or now < CFG["tp1_until"]) else None
 
 
 CFG["quiet"] = parse_quiet(CFG["quiet_raw"])
@@ -203,7 +183,7 @@ def gg_shot(h, l, c, bb_period, bb_dev):
     return longs, shorts
 
 
-def levels(side, price, atr, tp_atr=None, tp1_pct=None):
+def levels(side, price, atr, tp_atr=None):
     """Returns (entries[3], take_profits[], stop_loss). Single source for bot and backtest.
     atr: current ATR (entry spacing). tp_atr: ATR used for TP/SL distances (defaults to atr)."""
     cfg = CFG
@@ -212,15 +192,13 @@ def levels(side, price, atr, tp_atr=None, tp1_pct=None):
     entries = [price - sgn * atr * cfg["entry_step"] * k for k in range(3)]
     mults = cfg["tp_mults"][:cfg["tp_count"]] if cfg["all_tps"] else [cfg["tp_mults"][cfg["tp_level"] - 1]]
     tps = [price + sgn * tp_atr * m for m in mults]
-    if tp1_pct:  # fixed-percentage first target, remaining targets stay ATR based
-        tps[0] = price * (1 + sgn * tp1_pct / 100)
     sl = price - sgn * tp_atr * cfg["sl_mult"]
     return entries, tps, sl
 
 
 def build_signal(symbol, side, price, atr, prec, tp_atr=None):
     cfg = CFG
-    entries, tps, sl = levels(side, price, atr, tp_atr, tp1_override_pct())
+    entries, tps, sl = levels(side, price, atr, tp_atr)
     f = lambda x: f"{x:.{prec}f}"
     base, quote = (symbol[:-4], symbol[-4:]) if symbol.endswith("USDT") else (symbol[:-3], symbol[-3:])
     return "\n".join([
@@ -413,8 +391,6 @@ def main():
     if schedule_text():
         ZoneInfo(CFG["quiet_tz"])  # fail fast on a bad timezone name
     quiet = f", schedule: {schedule_text()}" if schedule_text() else ""
-    if CFG["tp1_pct"]:
-        quiet += f", TP1 fixed {CFG['tp1_pct']}%" + (f" until {CFG['tp1_until_raw']}" if CFG["tp1_until"] else "")
     print(f"Watching {CFG['symbols']} on {CFG['timeframe']} (dry_run={dry}{quiet})")
     while True:
         run_once(dry)
