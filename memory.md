@@ -60,6 +60,10 @@ No secrets are stored here (bot token / chat id live only in the server's system
   options still exist but must stay unset for channel 2.) End times exclusive; signals inside a quiet window are dropped.
 - Coin list/timeframe for channel 2 not yet specified (it copies channel 1).
 
+## History note
+- 2026-11-05: a 24-hour fixed 0.1% TP1 trial for louga-v2 was built, then REMOVED at the user's request (code reverted;
+  server `TP1_PCT`/`TP1_UNTIL` lines must be deleted). TPs are back to 1.5/3/5/9 x ATR.
+
 ## Backtest tooling (`cornix-bot/`)
 - `backtest.py`: portfolio sim — capital, % of equity as MARGIN per trade, leverage, fee per fill, 3 limit entries with
   configurable split, TP split (sets TP count), SL-to-entry after TP N, per-trade liquidation estimate, close on
