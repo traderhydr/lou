@@ -60,6 +60,13 @@ No secrets are stored here (bot token / chat id live only in the server's system
   options still exist but must stay unset for channel 2.) End times exclusive; signals inside a quiet window are dropped.
 - Coin list/timeframe for channel 2 not yet specified (it copies channel 1).
 
+## Current setup per bot (user-confirmed 2026-11-05)
+- `ggshot` (channel 1): 15m candles. Quiet hours 13:00-16:15, 19:30-23:15 Europe/Madrid were added for it (user ran/was given the
+  commands; verify with `grep QUIET /etc/systemd/system/ggshot.service`). State file `state.json`.
+- `louga-v2` (channel 2, chat id from its service file, separate `state_ch2.json`): 5m candles, no quiet hours, posts at all hours.
+- Both: 43 coins (list above), same code in `~/lou/cornix-bot`. Backtests favoured 15m over 5m and 1h; 5m was the worst.
+  Running both is effectively a live side-by-side comparison of 15m vs 5m.
+
 ## History note
 - 2026-11-05: quiet hours REMOVED from `louga-v2` at the user's request (no QUIET_/ACTIVE_ lines; posts at all hours).
   `ggshot` was given the same quiet hours (13:00-16:15, 19:30-23:15 Europe/Madrid) earlier and keeps them unless changed.
