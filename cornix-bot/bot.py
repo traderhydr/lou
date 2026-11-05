@@ -380,6 +380,23 @@ def main():
         for ts, side, msg in detect(k, sym, price_precision(sym), all_history=True)[-10:]:
             print(time.strftime("%Y-%m-%d %H:%M", time.gmtime(ts / 1000)), side, "\n" + msg + "\n")
         return
+    if "--recent" in args:  # list every signal of the last N hours (default 24) on fresh data; posts nothing
+        i = args.index("--recent")
+        hours = float(args[i + 1]) if len(args) > i + 1 else 24.0
+        cutoff = (time.time() - hours * 3600) * 1000
+        CFG["symbols"] = resolve_symbols(CFG["symbols"])
+        found = []
+        for sym in CFG["symbols"]:
+            try:
+                k = fetch_closed_klines(sym)
+            except Exception as e:
+                print(f"{sym}: error {e}", file=sys.stderr)
+                continue
+            found += [(x["ts"], sym, x["side"]) for x in compute_signals(k, all_history=True) if x["ts"] >= cutoff]
+        for ts, sym, side in sorted(found):
+            print(time.strftime("%m-%d %H:%M", time.gmtime(ts / 1000)), "UTC (candle open)", sym, side)
+        print(f"{len(found)} signal(s) in the last {hours:g}h across {len(CFG['symbols'])} coins on {CFG['timeframe']}")
+        return
     if "--test-telegram" in args:
         print("sent" if send_telegram("GG-SHOT bot connected ✅") else "failed")
         return
