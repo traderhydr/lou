@@ -67,6 +67,10 @@ No secrets are stored here (bot token / chat id live only in the server's system
 - Both: 43 coins (list above), same code in `~/lou/cornix-bot`. Backtests favoured 15m over 5m and 1h; 5m was the worst.
   Running both is effectively a live side-by-side comparison of 15m vs 5m.
 
+## louga-v2 targets (2026-11-06)
+- `louga-v2` sends 3 entries + 3 TPs (1.5, 3, 5 x ATR) + 1 SL via `TP_COUNT=3` in its service file. `ggshot` still sends 4 TPs.
+- Splits (entries 50/25/25, TPs 34/33/33) are Cornix-side settings.
+
 ## History note
 - 2026-11-05: quiet hours REMOVED from `louga-v2` at the user's request (no QUIET_/ACTIVE_ lines; posts at all hours).
   `ggshot` was given the same quiet hours (13:00-16:15, 19:30-23:15 Europe/Madrid) earlier and keeps them unless changed.
