@@ -71,6 +71,14 @@ No secrets are stored here (bot token / chat id live only in the server's system
 - `louga-v2` sends 3 entries + 3 TPs (1.5, 3, 5 x ATR) + 1 SL via `TP_COUNT=3` in its service file. `ggshot` still sends 4 TPs.
 - Splits (entries 50/25/25, TPs 34/33/33) are Cornix-side settings.
 
+## ggshot entry ladder (requested 2026-11-06)
+- Wanted: drop old 2nd entry; old 3rd -> 2nd; old "4th" -> 3rd; new 4th halfway between the SL and the new 3rd.
+  ggshot only had 3 entries, so user chose old 4th = 1.5 ATR (continuing the 0.5 step).
+- Result (ATR from signal price): 0, 1.0, 1.5, then midpoint(1.5 ATR entry, SL at 6 ATR) = 3.75 ATR. Config on ggshot:
+  `ENTRY_ATR_MULTS=0,1,1.5` + `ENTRY_MID_SL=1`. Midpoint is skipped when the SL is not beyond the last entry
+  (stale-ATR short case). 4 entries means the Cornix entry split (was 50/25/25) must be re-set for 4 entries.
+- Not backtested at the time of the change; risk: more size averaged in at worse prices before the 6 ATR stop.
+
 ## History note
 - 2026-11-05: quiet hours REMOVED from `louga-v2` at the user's request (no QUIET_/ACTIVE_ lines; posts at all hours).
   `ggshot` was given the same quiet hours (13:00-16:15, 19:30-23:15 Europe/Madrid) earlier and keeps them unless changed.

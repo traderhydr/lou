@@ -126,3 +126,26 @@ try:
 finally:
     bot.get_json = real
 print("OFFSET OK")
+
+# 12. custom entry ladder with a last entry halfway to the stop
+bot.CFG.update(all_tps=True, tp_count=4, entry_step=0.5, sl_mult=6.0)
+bot.CFG["entry_mults"] = []; bot.CFG["entry_mid_sl"] = False
+e, t, sl = bot.levels("LONG", 100.0, 1.0)
+assert [round(x, 4) for x in e] == [100.0, 99.5, 99.0]                       # default unchanged
+bot.CFG["entry_mults"] = [0, 1.0, 1.5]; bot.CFG["entry_mid_sl"] = True
+e, t, sl = bot.levels("LONG", 100.0, 1.0)
+assert [round(x, 4) for x in e] == [100.0, 99.0, 98.5, 96.25] and approx(sl, 94.0), e   # 0, 1, 1.5, 3.75 ATR
+e, t, sl = bot.levels("SHORT", 100.0, 1.0)
+assert [round(x, 4) for x in e] == [100.0, 101.0, 101.5, 103.75] and approx(sl, 106.0), e
+e, t, sl = bot.levels("SHORT", 100.0, 1.0, 0.1)                              # stale tiny ATR puts the SL inside the ladder
+assert len(e) == 3, e                                                        # -> no midpoint entry is added
+msg = bot.build_signal("BTCUSDT", "LONG", 100.0, 1.0, 2)
+import re as _re
+assert len(_re.findall(r"^\d\) ", msg, _re.M)) == 4 + 4 + 1, msg           # 4 entries, 4 TPs, 1 stop
+# backtest handles 4 entries (equal split) and fills the deep one
+bot.CFG["entry_mults"] = [0, 1.0, 1.5]; bot.CFG["entry_mid_sl"] = True
+kl = [K(0, 100, 100, 100, 100), K(1, 100, 100.2, 95.0, 96.0)]
+tr = bt.simulate_trade(kl, LONG, None, 5, 0.0, 0)
+assert approx(tr["filled"], 1.0) and tr["reason"] in ("SL", "END"), tr
+bot.CFG["entry_mults"] = []; bot.CFG["entry_mid_sl"] = False
+print("ENTRY LADDER OK")

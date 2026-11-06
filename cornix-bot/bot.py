@@ -36,6 +36,9 @@ CFG = {
     # 1 = copy the script: SHORT TP/SL use the ATR from the last LONG signal (its valuewhen(buy,..) quirk)
     "script_short_atr": env("SCRIPT_SHORT_ATR", "1") == "1",
     "tp_count": env("TP_COUNT", 4, int),             # how many of TP1..TP4 to send when ALL_TPS=1
+    # entry distances in ATR from the signal price; empty = [0, ENTRY_STEP_ATR, 2*ENTRY_STEP_ATR]
+    "entry_mults": [float(x) for x in env("ENTRY_ATR_MULTS", "").split(",") if x.strip()],
+    "entry_mid_sl": env("ENTRY_MID_SL", "0") == "1",  # 1 = add a last entry halfway between the last entry and the SL
     "all_tps": env("ALL_TPS", "1") == "1",           # 1 = send TP1..TP4 like the chart
     "tp_mults": [float(x) for x in env("TP_ATR_MULTS", "1.5,3,5,9").split(",")],
     "entry_step": env("ENTRY_STEP_ATR", 0.5, float),  # spacing between the 3 entries
@@ -189,10 +192,13 @@ def levels(side, price, atr, tp_atr=None):
     cfg = CFG
     sgn = 1 if side == "LONG" else -1
     tp_atr = atr if tp_atr is None else tp_atr
-    entries = [price - sgn * atr * cfg["entry_step"] * k for k in range(3)]
+    e_mults = cfg["entry_mults"] or [cfg["entry_step"] * k for k in range(3)]
+    entries = [price - sgn * atr * m for m in e_mults]
     mults = cfg["tp_mults"][:cfg["tp_count"]] if cfg["all_tps"] else [cfg["tp_mults"][cfg["tp_level"] - 1]]
     tps = [price + sgn * tp_atr * m for m in mults]
     sl = price - sgn * tp_atr * cfg["sl_mult"]
+    if cfg["entry_mid_sl"] and (entries[-1] - sl) * sgn > 0:  # only if the last entry is still on the safe side of the SL
+        entries.append((entries[-1] + sl) / 2)
     return entries, tps, sl
 
 
