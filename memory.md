@@ -80,6 +80,8 @@ No secrets are stored here (bot token / chat id live only in the server's system
 - Not backtested at the time of the change; risk: more size averaged in at worse prices before the 6 ATR stop.
 
 ## History note
+- 2026-11-10: quiet hours REMOVED from `ggshot` too at the user's request (no QUIET_/ACTIVE_ lines) -> both bots post at all
+  hours. ggshot now: 15m, 25x, 4 entries (0/1.0/1.5/3.75 ATR via ENTRY_ATR_MULTS + ENTRY_MID_SL), 4 TPs, 1 SL.
 - 2026-11-05: quiet hours REMOVED from `louga-v2` at the user's request (no QUIET_/ACTIVE_ lines; posts at all hours).
   `ggshot` was given the same quiet hours (13:00-16:15, 19:30-23:15 Europe/Madrid) earlier and keeps them unless changed.
 - 2026-11-05: a 24-hour fixed 0.1% TP1 trial for louga-v2 was built, then REMOVED at the user's request (code reverted;
