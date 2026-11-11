@@ -277,17 +277,22 @@ def price_precision(symbol):
     return _prec_cache.get(symbol, 4)
 
 
+ALIASES = {"MATIC": "POL", "FTM": "S"}  # assets renamed on Binance futures
+
+
 def resolve_symbols(names):
-    """Accept 'BTC', 'BTCUSDT' or 'PEPE' (-> 1000PEPEUSDT). Unknown coins are skipped with a warning."""
+    """Accept 'BTC', 'BTCUSDT' or 'PEPE' (-> 1000PEPEUSDT when needed). Renamed coins are mapped (MATIC->POL, FTM->S),
+    duplicates are dropped, unknown coins are skipped with a WARNING."""
     price_precision("BTCUSDT")  # loads exchangeInfo into the cache
     out = []
     for n in names:
         n = n.upper()
-        if not n.endswith("USDT"):
-            n += "USDT"
+        base = n[:-4] if n.endswith("USDT") else n
+        n = ALIASES.get(base, base) + "USDT"
         for cand in (n, "1000" + n):
             if cand in _prec_cache:
-                out.append(cand)
+                if cand not in out:
+                    out.append(cand)
                 break
         else:
             print(f"WARNING: {n} not found on exchange, skipping", file=sys.stderr)

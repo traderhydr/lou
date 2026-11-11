@@ -60,3 +60,11 @@ assert not bot.is_quiet(M(7, 13, 0)) and not bot.is_quiet(M(8, 19, 0))    # Sat 
 assert bot.is_quiet(M(2, 13, 0)) and bot.is_quiet(M(6, 13, 0))            # Mon and Fri 14:00 -> quiet
 bot.CFG.update(quiet=[], quiet_days=set())
 print("USER SCHEDULE OK")
+
+# symbol resolution: aliases, duplicates, 1000x names, unknown coins
+bot._prec_cache.clear()
+bot._prec_cache.update({k: 2 for k in ["BTCUSDT", "POLUSDT", "SUSDT", "1000PEPEUSDT", "1000SHIBUSDT", "ETHUSDT"]})
+bot.price_precision = lambda s: 2
+out = bot.resolve_symbols(["BTC", "btcusdt", "MATIC", "POL", "FTM", "PEPE", "1000SHIB", "SHIB", "ETH", "XYZ"])
+assert out == ["BTCUSDT", "POLUSDT", "SUSDT", "1000PEPEUSDT", "1000SHIBUSDT", "ETHUSDT"], out
+print("RESOLVE OK")

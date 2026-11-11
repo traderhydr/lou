@@ -79,6 +79,14 @@ No secrets are stored here (bot token / chat id live only in the server's system
   (stale-ATR short case). 4 entries means the Cornix entry split (was 50/25/25) must be re-set for 4 entries.
 - Not backtested at the time of the change; risk: more size averaged in at worse prices before the 6 ATR stop.
 
+## Coin list update (2026-11-11)
+- User pasted the Pine script's asset dropdown; crypto coins only were added to BOTH bots, existing ones ignored, forex/stocks/
+  metals and BTC/D (dominance index) skipped. 25 new: QTUM AUDIO AXS BAND OP ENS BAKE CELR 1000PEPE CHR HNT BLZ KAVA ZEN FLOW YFI
+  MATIC ANKR TOMO DASH SUSHI SKL UNFI FTM SFP -> 68 coins. `resolve_symbols` now maps MATIC->POL, FTM->S, dedupes, and skips
+  coins Binance does not list (possibly delisted: AUDIO, BAKE, BLZ, HNT, TOMO, UNFI...). Not backtested.
+- The script has per-coin Sensitivity/Offset presets for these coins (e.g. OP 15m 170/2.8, ZIL 15m 150/3.5, DOT 15m 20/2.5);
+  the bot still uses 100/1.5 for all. Per-coin presets = possible next step.
+
 ## History note
 - 2026-11-10: quiet hours REMOVED from `ggshot` too at the user's request (no QUIET_/ACTIVE_ lines) -> both bots post at all
   hours. ggshot now: 15m, 25x, 4 entries (0/1.0/1.5/3.75 ATR via ENTRY_ATR_MULTS + ENTRY_MID_SL), 4 TPs, 1 SL.
