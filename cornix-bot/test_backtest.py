@@ -149,3 +149,24 @@ tr = bt.simulate_trade(kl, LONG, None, 5, 0.0, 0)
 assert approx(tr["filled"], 1.0) and tr["reason"] in ("SL", "END"), tr
 bot.CFG["entry_mults"] = []; bot.CFG["entry_mid_sl"] = False
 print("ENTRY LADDER OK")
+
+# 13. ggshot 3-entry ladder: 0, 1.5 ATR, and the midpoint-to-SL entry moved 0.3% of price toward entry 2
+bot.CFG.update(all_tps=True, tp_count=4, entry_step=0.5, sl_mult=6.0)
+bot.CFG["entry_mults"] = [0, 1.5]; bot.CFG["entry_mid_sl"] = True; bot.CFG["entry_last_shift"] = 0.3
+e, t, sl = bot.levels("LONG", 100.0, 1.0)
+assert [round(x, 4) for x in e] == [100.0, 98.5, 96.55] and approx(sl, 94.0), e      # midpoint 96.25 + 0.3
+e, t, sl = bot.levels("SHORT", 100.0, 1.0)
+assert [round(x, 4) for x in e] == [100.0, 101.5, 103.45] and approx(sl, 106.0), e
+e, t, sl = bot.levels("LONG", 80000.0, 240.7)                                        # the BTC sample from the logs
+assert approx(e[1], 80000 - 1.5 * 240.7, 1e-6) and approx(e[2], 80000 - 3.75 * 240.7 + 240.0, 1e-6), e
+e, t, sl = bot.levels("LONG", 100.0, 0.05)       # tiny ATR: a 0.3% shift would cross entry 2 -> midpoint of entries 2 and 3
+assert len(e) == 3 and e[0] > e[1] > e[2] > sl, e
+assert approx(e[2], (99.925 + 99.8125) / 2, 1e-6), e
+bot.CFG["entry_last_shift"] = 0.0
+e, t, sl = bot.levels("LONG", 100.0, 1.0)         # without the shift: old 4th entry, exactly 3.75 ATR
+assert [round(x, 4) for x in e] == [100.0, 98.5, 96.25], e
+msg = bot.build_signal("BTCUSDT", "LONG", 100.0, 1.0, 2)
+import re as _re2
+assert len(_re2.findall(r"^\d\) ", msg, _re2.M)) == 3 + 4 + 1, msg                  # 3 entries, 4 TPs, 1 stop
+bot.CFG["entry_mults"] = []; bot.CFG["entry_mid_sl"] = False; bot.CFG["entry_last_shift"] = 0.0
+print("THREE ENTRY LADDER OK")

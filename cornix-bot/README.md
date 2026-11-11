@@ -19,6 +19,7 @@ appears, posts a Cornix-format message (3 entries, 1 TP, 1 SL) to your Telegram 
 | `TP_LEVEL` | `1` | which of TP1–TP4 (ATR x `1.5,3,5,9`) |
 | `SL_ATR_MULT` | `6` | stop distance in ATR |
 | `ENTRY_ATR_MULTS` | (off) | custom entry distances in ATR from the signal price, e.g. `0,1,1.5` (replaces the 3-step ladder) |
+| `ENTRY_LAST_SHIFT_PCT` | `0` | move the last entry this % of price toward the previous entry (never past it) |
 | `ENTRY_MID_SL` | `0` | `1` = add one more entry halfway between the last entry and the stop-loss |
 | `ENTRY_STEP_ATR` | `0.5` | spacing between the 3 entries |
 | `LEVERAGE`, `MARGIN_TYPE` | `10`, `Cross` | shown to Cornix |

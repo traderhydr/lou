@@ -87,6 +87,12 @@ No secrets are stored here (bot token / chat id live only in the server's system
 - The script has per-coin Sensitivity/Offset presets for these coins (e.g. OP 15m 170/2.8, ZIL 15m 150/3.5, DOT 15m 20/2.5);
   the bot still uses 100/1.5 for all. Per-coin presets = possible next step.
 
+## ggshot 3-entry ladder (2026-11-11)
+- Replaces the 4-entry ladder: removed old 2nd entry; entries = signal price, 1.5 ATR, and the old 4th (midpoint between the
+  1.5 ATR entry and the SL = 3.75 ATR) moved 0.3% of price toward entry 2 (away from the SL). Config on ggshot:
+  `ENTRY_ATR_MULTS=0,1.5`, `ENTRY_MID_SL=1`, `ENTRY_LAST_SHIFT_PCT=0.3`. If the shift would cross entry 2 (tiny ATR), the last
+  entry becomes the midpoint of entries 2 and 3. Re-set the Cornix entry split for 3 entries. Not backtested.
+
 ## History note
 - 2026-11-10: quiet hours REMOVED from `ggshot` too at the user's request (no QUIET_/ACTIVE_ lines) -> both bots post at all
   hours. ggshot now: 15m, 25x, 4 entries (0/1.0/1.5/3.75 ATR via ENTRY_ATR_MULTS + ENTRY_MID_SL), 4 TPs, 1 SL.

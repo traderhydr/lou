@@ -38,6 +38,7 @@ CFG = {
     "tp_count": env("TP_COUNT", 4, int),             # how many of TP1..TP4 to send when ALL_TPS=1
     # entry distances in ATR from the signal price; empty = [0, ENTRY_STEP_ATR, 2*ENTRY_STEP_ATR]
     "entry_mults": [float(x) for x in env("ENTRY_ATR_MULTS", "").split(",") if x.strip()],
+    "entry_last_shift": env("ENTRY_LAST_SHIFT_PCT", 0.0, float),  # move the LAST entry this % of price toward the previous entry
     "entry_mid_sl": env("ENTRY_MID_SL", "0") == "1",  # 1 = add a last entry halfway between the last entry and the SL
     "all_tps": env("ALL_TPS", "1") == "1",           # 1 = send TP1..TP4 like the chart
     "tp_mults": [float(x) for x in env("TP_ATR_MULTS", "1.5,3,5,9").split(",")],
@@ -199,6 +200,11 @@ def levels(side, price, atr, tp_atr=None):
     sl = price - sgn * tp_atr * cfg["sl_mult"]
     if cfg["entry_mid_sl"] and (entries[-1] - sl) * sgn > 0:  # only if the last entry is still on the safe side of the SL
         entries.append((entries[-1] + sl) / 2)
+    if cfg["entry_last_shift"] and len(entries) >= 2:
+        shifted = entries[-1] + sgn * price * cfg["entry_last_shift"] / 100  # toward the signal price = away from the SL
+        if (entries[-2] - shifted) * sgn <= 0:  # would cross the previous entry -> use the midpoint between them instead
+            shifted = (entries[-2] + entries[-1]) / 2
+        entries[-1] = shifted
     return entries, tps, sl
 
 
