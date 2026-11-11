@@ -97,6 +97,13 @@ No secrets are stored here (bot token / chat id live only in the server's system
 - User removed LQTY, COTI, RUNE, INJ from BOTH bots (CHZ and WLD were not in the 68-coin list, so no-ops). 68 -> 64 coins.
   To re-add: append to the `SYMBOLS=` line of the service file.
 
+## One-shot config script (2026-11-11)
+- `cornix-bot/apply_config.sh` (run `bash ~/lou/cornix-bot/apply_config.sh` after `git pull`): sets BOTH service files to the
+  agreed final state — 64 coins; ggshot = 15m, 25x, entries `0,1.5` + mid-SL entry shifted 0.3%, 4 TPs, no quiet hours;
+  louga-v2 = 5m, TP_COUNT=3, default 3-entry ladder, no quiet hours, its LEVERAGE left untouched. Keeps token/chat id/state
+  file, writes `*.service.bak` backups, restarts both, prints cycle lines and a sample message. Idempotent (tested on fake files).
+  If the agreed settings change later, edit the script too, or it will overwrite manual edits on the next run.
+
 ## History note
 - 2026-11-10: quiet hours REMOVED from `ggshot` too at the user's request (no QUIET_/ACTIVE_ lines) -> both bots post at all
   hours. ggshot now: 15m, 25x, 4 entries (0/1.0/1.5/3.75 ATR via ENTRY_ATR_MULTS + ENTRY_MID_SL), 4 TPs, 1 SL.
