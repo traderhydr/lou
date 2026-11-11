@@ -93,6 +93,10 @@ No secrets are stored here (bot token / chat id live only in the server's system
   `ENTRY_ATR_MULTS=0,1.5`, `ENTRY_MID_SL=1`, `ENTRY_LAST_SHIFT_PCT=0.3`. If the shift would cross entry 2 (tiny ATR), the last
   entry becomes the midpoint of entries 2 and 3. Re-set the Cornix entry split for 3 entries. Not backtested.
 
+## Coins removed (2026-11-11)
+- User removed LQTY, COTI, RUNE, INJ from BOTH bots (CHZ and WLD were not in the 68-coin list, so no-ops). 68 -> 64 coins.
+  To re-add: append to the `SYMBOLS=` line of the service file.
+
 ## History note
 - 2026-11-10: quiet hours REMOVED from `ggshot` too at the user's request (no QUIET_/ACTIVE_ lines) -> both bots post at all
   hours. ggshot now: 15m, 25x, 4 entries (0/1.0/1.5/3.75 ATR via ENTRY_ATR_MULTS + ENTRY_MID_SL), 4 TPs, 1 SL.
